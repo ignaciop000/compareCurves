@@ -74,11 +74,12 @@ def getdXcurve(curveX, sigma, gaussian, gaussian1D, gaussian2D, isOpen):
 	return (gx, dx, d2x)
 
 def resampleCurve(curveX, curveY, N, isOpen):
-	pl = polyLineMerge(curveX,curveY)
-	pl_length = cv2.arcLength(pl, False)
 	resamplepl = np.empty(N, dtype=object)
 	resamplepl[0] = (curveX[0], curveY[0])
-
+	pl = polyLineMerge(curveX,curveY)
+	pl = np.asarray(pl)
+	print pl.dtype, len (pl)
+	pl_length = cv2.arcLength(pl, False)
 	resample_size = pl_length / N
 	curr = 0
 	dist = 0.0
@@ -111,7 +112,9 @@ def resampleCurve(curveX, curveY, N, isOpen):
 if __name__ == "__main__":
 	x = np.linspace(1, 50, 100)
 	curve = zip(x, f(x))
+	a = np.array([(1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7)])
 
+	print a.dtype, cv2.arcLength(a, False) # Prints 8.485281229019165
 	sigma = 1.0;
 	M = int((10.0*sigma+1.0) / 2.0) * 2 - 1;
 	#M is an odd number
