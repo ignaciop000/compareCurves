@@ -78,7 +78,7 @@ def resampleCurve(curveX, curveY, N, isOpen):
 	resamplepl[0] = (curveX[0], curveY[0])
 	pl = polyLineMerge(curveX,curveY)
 	pl = np.asarray(pl)
-	print pl.dtype, len (pl)
+	pl = np.float32(pl)
 	pl_length = cv2.arcLength(pl, False)
 	resample_size = pl_length / N
 	curr = 0
@@ -90,9 +90,10 @@ def resampleCurve(curveX, curveY, N, isOpen):
 		if dist >= resample_size:
 			#put a point on line
 			_d = last_dist - (dist-resample_size)
-			cp = (pl[curr].x,pl[curr].y)
-			cp1 = (pl[curr+1].x,pl[curr+1].y)
-			dirv = cp1-cp;
+			cp = (pl[curr][0],pl[curr][1])
+			cp1 = (pl[curr+1][0],pl[curr+1][1])
+			dirv = np.subtract(cp1, cp)
+			
 			dirv = dirv * (1.0 / cv2.norm(dirv))
 			resamplepl[i] = cp + dirv * _d
 			i += 1
@@ -109,14 +110,44 @@ def resampleCurve(curveX, curveY, N, isOpen):
 	(resampleX,resampleY) = polyLineSplit(resamplepl)
 	return (resampleX, resampleY)
 
-if __name__ == "__main__":
-	x = np.linspace(1, 50, 100)
-	curve = zip(x, f(x))
-	a = np.array([(1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7)])
 
-	print a.dtype, cv2.arcLength(a, False) # Prints 8.485281229019165
-	sigma = 1.0;
-	M = int((10.0*sigma+1.0) / 2.0) * 2 - 1;
+"""
+	compute curvature of curve after gaussian smoothing 
+	from "Shape similarity retrieval under affine transforms", Mokhtarian & Abbasi 2002
+ 	curvex - x position of points
+ 	curvey - y position of points
+ 	kappa - curvature coeff for each point
+ 	sigma - gaussian sigma
+"""
+def computeCurveCSS(curveX, curveY, sigma, isOpen):
+    M = round((10.0*sigma+1.0) / 2.0) * 2 - 1
+ 
+    g,dg,d2g = getGaussianDerivs(sigma,M)
+
+    smoothX,X,XX = getdXcurve(curveX,sigma,g,dg,d2g, isOpen);
+	smoothY,Y,YY = getdXcurve(curveY,sigma,g,dg,d2g, isOpen);
+         
+    kappa = np.zeros(len(curvex))    
+    for i in range(0, len(curvex));
+        # Mokhtarian 02' eqn (4)
+        kappa[i] = (X[i]*YY[i] - XX[i]*Y[i]) / pow(X[i]*X[i] + Y[i]*Y[i], 1.5);
+    return kappa
+"""
+	find zero crossings on curvature
+"""
+def findCSSInterestPoints(kappa):
+    crossings = []
+    for i in range(0, len(kappa)-1):
+        if ((kappa[i] < 0 && kappa[i+1] > 0) || kappa[i] > 0 && kappa[i+1] < 0):
+            crossings.append(i)
+    return crossings
+
+if __name__ == "__main__":
+	x = np.linspace(1, 50, 500)
+	curve = zip(x, f(x))
+	
+	sigma = 1.0
+	M = int((10.0*sigma+1.0) / 2.0) * 2 - 1
 	#M is an odd number
 	gaussian, gaussian1D, gaussian2D = getGaussianDerivs(sigma,M);
 	curveX, curveY = polyLineSplit(curve)
@@ -126,5 +157,5 @@ if __name__ == "__main__":
 	resampleX, resampleY = resampleCurve(curveX, curveY, 50, True)
 	pl.plot(curveX, curveY)
 	pl.plot(smoothX, smoothY)
-	#pl.plot(resampleX, resampleY)
+	pl.plot(resampleX, resampleY)
 	pl.show()
